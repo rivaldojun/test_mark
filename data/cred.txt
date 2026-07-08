@@ -1,0 +1,30 @@
+python3 deriv_ws_scalper.py --token pat_fbd15c336dfaeed8fde1261edec9d2e368be0dd3ae84823b2dd99e86b508f592 --app-id 33KDcSAn5kyBDFqgI5DfX
+
+
+
+Les voici — croco a tout en dur (config optimale intégrée), l'alligator de base a besoin des flags :
+
+croco (avec R1) — rr=3, M5, hors-session déjà intégrés :
+
+
+# TRAIN (+$2827, PF 1.45)
+python3 backtest_xau.py run --strategy croco --from 2026-03-25 --to 2026-06-15
+
+# TEST (+$236, PF 1.20)
+python3 backtest_xau.py run --strategy croco --from 2026-06-15 --to 2026-07-06
+alligator base (sans R1) — même config, passée explicitement :
+
+
+# TRAIN (+$912, PF 1.11)
+python3 backtest_xau.py run --strategy alligator --rr 3 --tf M5 --sessions off --from 2026-03-25 --to 2026-06-15
+
+# TEST (+$625, PF 1.44)
+python3 backtest_xau.py run --strategy alligator --rr 3 --tf M5 --sessions off --from 2026-06-15 --to 2026-07-06
+Deux précisions :
+
+Le SPREAD_BARS=5 du sweep est la valeur par défaut de la classe, donc pas de flag nécessaire.
+Chaque run écrase trades_<strategy>.csv et equity_<strategy>.csv — si tu veux comparer TRAIN et TEST côte à côte, renomme les fichiers entre les deux runs.
+Et si tu veux voir la seule différence entre les deux stratégies (l'effet de R1), compare les colonnes time_in : croco n'aura aucun trade entre 00:00 et 04:59 UTC.
+
+
+python3 deriv_ws_scalper.py --strategy alligator-v2 --tf M1 --sessions london,ny,off --token pat_fbd15c336dfaeed8fde1261edec9d2e368be0dd3ae84823b2dd99e86b508f592 --app-id 33KDcSAn5kyBDFqgI5DfX
