@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:developers.deriv.com)",
+      "WebFetch(domain:api.deriv.com)",
+      "WebFetch(domain:legacy-api.deriv.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -s \"https://api.github.com/search/repositories?q=deriv+websockets+api+schema\")",
+      "Bash(curl -s \"https://api.github.com/search/repositories?q=org:deriv-com+api\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); [print\\(x['full_name']\\) for x in d.get\\('items',[]\\)]\")"
+    ]
+  }
+}

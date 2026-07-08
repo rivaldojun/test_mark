@@ -1,0 +1,1 @@
+python3 deriv_ws_scalper.py --token pat_fbd15c336dfaeed8fde1261edec9d2e368be0dd3ae84823b2dd99e86b508f592 --app-id 33KDcSAn5kyBDFqgI5DfX
