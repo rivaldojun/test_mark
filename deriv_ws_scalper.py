@@ -765,7 +765,8 @@ async def run(token: str, app_id: str, symbol: str, preferred_multiplier: Option
                     continue
 
                 # ── Trailing / break-even management ──────────────────────────
-                await manage_trailing_stops(client, positions)
+                if strat.use_break_even:
+                    await manage_trailing_stops(client, positions)
 
                 # ── Entry gate: respect max open trades ───────────────────────
                 if len(positions) >= MAX_OPEN_TRADES:

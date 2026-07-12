@@ -586,7 +586,7 @@ def main():
     p.add_argument("--or-bars", type=int, default=None,
                    help="orb uniquement: taille du range d'ouverture en bougies de --tf (défaut 5)")
     p.add_argument("--slippage", type=float, default=0.05, help="en unités de prix (USD sur XAU)")
-    p.add_argument("--commission-pct", type=float, default=0.0024,
+    p.add_argument("--commission-pct", type=float, default=0.018,
                    help="commission Deriv en %% du notionnel (mesurée ~0.0024 sur XAU)")
     # grid mode (ORB)
     p.add_argument("--grid-rr", default="1.5,2,2.5,3,4", help="grid: liste de R:R")

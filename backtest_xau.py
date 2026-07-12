@@ -304,23 +304,28 @@ def run_backtest(strategy_name: str, m1: pd.DataFrame, balance0: float,
         if pos is not None:
             hi, lo = h[i], l[i]
             be_trigger = BE_TRIGGER_R * pos["sl_dist"]
+            allow_be = strat.use_break_even
             exit_price, why = None, None
+            # fills gap-aware: si la bougie OUVRE déjà au-delà du niveau
+            # (gap week-end/news), le fill réel est l'open, pas le niveau.
             if pos["dir"] == "long":
-                if not pos["be"] and hi - pos["entry"] >= be_trigger:
+                if allow_be and not pos["be"] and hi - pos["entry"] >= be_trigger:
                     pos["sl"] = pos["entry"]          # break-even (scratch)
                     pos["be"] = True
                 if lo <= pos["sl"]:
-                    exit_price, why = pos["sl"], ("BE" if pos["be"] else "SL")
+                    exit_price = min(o[i], pos["sl"])
+                    why = "BE" if pos["be"] else "SL"
                 elif hi >= pos["tp"]:
-                    exit_price, why = pos["tp"], "TP"
+                    exit_price, why = max(o[i], pos["tp"]), "TP"
             else:
-                if not pos["be"] and pos["entry"] - lo >= be_trigger:
+                if allow_be and not pos["be"] and pos["entry"] - lo >= be_trigger:
                     pos["sl"] = pos["entry"]
                     pos["be"] = True
                 if hi >= pos["sl"]:
-                    exit_price, why = pos["sl"], ("BE" if pos["be"] else "SL")
+                    exit_price = max(o[i], pos["sl"])
+                    why = "BE" if pos["be"] else "SL"
                 elif lo <= pos["tp"]:
-                    exit_price, why = pos["tp"], "TP"
+                    exit_price, why = min(o[i], pos["tp"]), "TP"
 
             if exit_price is not None:
                 sgn = 1 if pos["dir"] == "long" else -1
@@ -542,8 +547,14 @@ def main():
                         "(défaut: comportement propre à la stratégie)")
     p.add_argument("--or-bars", type=int, default=None,
                    help="orb uniquement: taille du range d'ouverture en bougies de --tf (défaut 5)")
+    p.add_argument("--set", action="append", default=[], metavar="ATTR=VAL",
+                   help="run: override d'attribut de stratégie, répétable "
+                        "(ex: --set EXIT_MODE=atr --set RR_X=3 --set H1_FILTER=True)")
+    p.add_argument("--multipliers", default=None,
+                   help="liste des multiplicateurs du symbole (ex: '50,100,200,300,500' pour R_75; "
+                        "défaut: ceux de frxXAUUSD)")
     p.add_argument("--slippage", type=float, default=0.05, help="en unités de prix (USD sur XAU)")
-    p.add_argument("--commission-pct", type=float, default=0.018,
+    p.add_argument("--commission-pct", type=float, default=0.0024,
                    help="commission Deriv en %% du notionnel (mesurée ~0.018 sur XAU)")
     # grid mode (ORB)
     p.add_argument("--grid-rr", default="1.5,2,2.5,3,4", help="grid: liste de R:R")
@@ -560,11 +571,25 @@ def main():
     m1 = load_m1(args.symbol, args.d_from, args.d_to)
     print(f"Données: {args.symbol} M1  {m1.index[0]} → {m1.index[-1]}  ({len(m1)} bougies)")
 
+    if args.multipliers:
+        global MULTIPLIERS
+        MULTIPLIERS = sorted(float(x) for x in args.multipliers.split(","))
+        print(f"Multiplicateurs: {MULTIPLIERS}")
+
     if args.mode == "run":
-        overrides = {"OR_BARS": args.or_bars} if (args.or_bars and args.strategy == "orb") else None
+        overrides = {}
+        if args.or_bars and args.strategy == "orb":
+            overrides["OR_BARS"] = args.or_bars
+        import ast
+        for item in args.set:
+            key, _, val = item.partition("=")
+            try:
+                overrides[key.strip()] = ast.literal_eval(val.strip())
+            except (ValueError, SyntaxError):
+                overrides[key.strip()] = val.strip()   # chaîne brute (ex: atr)
         run_backtest(args.strategy, m1, args.balance, args.risk, args.rr,
                      args.slippage, args.commission_pct, tf=args.tf,
-                     sessions=args.sessions, overrides=overrides)
+                     sessions=args.sessions, overrides=overrides or None)
     elif args.mode == "grid":
         run_grid(m1, args)
     else:   # compare

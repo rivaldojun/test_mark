@@ -31,6 +31,7 @@ from typing import Dict, Optional
 import numpy as np
 import pandas as pd
 
+
 # ── Session configuration (UTC, summer time — see module docstring) ──────────
 LONDON_OPEN_UTC = dtime(7, 0)
 NY_OPEN_UTC     = dtime(13, 30)
@@ -115,6 +116,30 @@ def alligator_lines(df: pd.DataFrame):
     teeth = smma(med, 8).shift(5)
     lips  = smma(med, 5).shift(3)
     return jaw, teeth, lips
+
+
+def tv_smma(series: pd.Series, length: int) -> pd.Series:
+    """SMMA façon TradingView: amorcée par la SMA des `length` premières
+    valeurs, puis récursive out[i] = (out[i-1]*(length-1) + x[i]) / length.
+    (Converge vers ewm(alpha=1/length) mais l'amorçage diffère — fidèle au
+    script from_scratch.py de l'utilisateur.)"""
+    vals = series.values.astype(float)
+    out = np.full(len(vals), np.nan)
+    if len(vals) < length:
+        return pd.Series(out, index=series.index)
+    out[length - 1] = vals[:length].mean()
+    for i in range(length, len(vals)):
+        out[i] = (out[i - 1] * (length - 1) + vals[i]) / length
+    return pd.Series(out, index=series.index)
+
+
+def tv_alligator_lines(df: pd.DataFrame):
+    """Alligator NON décalé (style TradingView, comme from_scratch.py): les
+    lignes collent au prix. Sans le décalage forward de Williams, l'empilement
+    s'interprète à l'envers: en tendance baissière jaw(13) est AU-DESSUS de
+    lips(5)."""
+    hl2 = (df["high"] + df["low"]) / 2.0
+    return tv_smma(hl2, 13), tv_smma(hl2, 8), tv_smma(hl2, 5)
 
 
 def ensure_cols(df: pd.DataFrame, needs: Dict[str, tuple]) -> pd.DataFrame:
@@ -212,6 +237,9 @@ class Strategy:
     DEFAULT_TF: int = M5
     #: reward/risk multiple used for TP when the strategy is R-based
     rr: float = 2.0
+    #: False ⇒ les moteurs (backtest + live) ne déplacent JAMAIS le SL au
+    #: break-even pour cette stratégie (utile quand la spec n'en prévoit pas)
+    use_break_even: bool = True
 
     def __init__(self, rr: Optional[float] = None, tf: Optional[int] = None,
                  sessions: Optional[tuple] = None):
@@ -712,13 +740,537 @@ class CrocoStrategy(AlligatorStrategy):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+#  7) Streak Scalper — Micro-gains sur suites de bougies (M1 / M5)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class StreakScalperStrategy(Strategy):
+    """
+    Stratégie basée sur la répétition de bougies de même couleur (Streak).
+    L'objectif est d'attraper des micro-gains de manière ultra-rapide.
+    
+    Configuration :
+      - STREAK_LEN : Nombre de bougies de même couleur consécutives requises (2 ou 3).
+      - TF conseillé : M1 ou M5 pour maximiser les opportunités.
+      - Money Management : TP ultra-court indexé sur l'ATR pour sécuriser le micro-gain,
+                           SL serré pour couper si le marché se retourne immédiatement.
+    """
+    name = "streak-scalper"
+    DEFAULT_TF = M1  # Idéal pour accumuler des centaines de micro-gains
+
+    def __init__(self, rr=None, tf=None, sessions=None, streak_len=2, tp_atr_mult=0.4, sl_atr_mult=0.8):
+        super().__init__(rr, tf, sessions)
+        self.streak_len = int(streak_len)
+        self.tp_atr_mult = tp_atr_mult
+        self.sl_atr_mult = sl_atr_mult
+
+    def _grans(self, tf):
+        return {tf: 100}
+
+    def signal(self, data, now):
+        df = data[self.tf]
+        if len(df) < max(self.streak_len + 5, 20):
+            return None
+
+        # S'assurer d'avoir l'ATR pour le calcul dynamique des paliers SL/TP
+        df = ensure_cols(df, {"atr": ("atr", 14)})
+        
+        # Récupération des dernières bougies closes
+        closes = df["close"].values
+        opens = df["open"].values
+        atr = float(df["atr"].iloc[-1])
+        
+        if atr <= 0 or np.isnan(atr):
+            return None
+
+        # Détermination de la couleur des bougies (-1 pour rouge/baissière, 1 pour verte/haussière, 0 pour doji)
+        colors = np.where(closes > opens, 1, np.where(closes < opens, -1, 0))
+        
+        # Extraction de la dernière séquence de bougies closes
+        last_streak = colors[-self.streak_len:]
+        
+        # Vérification si la clé du setup a déjà été consommée
+        key = (df.index[-1], self.streak_len)
+        if key in self._done:
+            return None
+
+        current_price = float(closes[-1])
+
+        # CAS 1 : Suite de bougies vertes -> On achète (LONG) pour la suivante
+        if np.all(last_streak == 1):
+            self._done.add(key)
+            tp = current_price + (atr * self.tp_atr_mult)
+            sl = current_price - (atr * self.sl_atr_mult)
+            return Signal("long", sl, tp, f"Streak de {self.streak_len} bougies vertes")
+
+        # CAS 2 : Suite de bougies rouges -> On vend (SHORT) pour la suivante
+        if np.all(last_streak == -1):
+            self._done.add(key)
+            tp = current_price - (atr * self.tp_atr_mult)
+            sl = current_price + (atr * self.sl_atr_mult)
+            return Signal("short", sl, tp, f"Streak de {self.streak_len} bougies rouges")
+
+        return None
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  7) Streak Scalper Fixed — Micro-gains avec SL/TP fixes en Dollars
+# ──────────────────────────────────────────────────────────────────────────────
+
+class StreakScalperFixedStrategy(Strategy):
+    """
+    Stratégie basée sur la répétition de bougies de même couleur (Streak).
+    L'objectif est d'attraper des micro-gains avec un Money Management 
+    strict exprimé en valeur absolue (Dollars / Unités de prix).
+    
+    Configuration :
+      - STREAK_LEN : Nombre de bougies de même couleur consécutives (2 ou 3).
+      - TP_DOLLARS : Le gain visé par trade en dollars (ex: 1.5 pour 1.5$).
+      - SL_DOLLARS : Le risque maximum par trade en dollars (ex: 3.0 pour 3.0$).
+    """
+    name = "streak-scalper-fixed"
+    DEFAULT_TF = M1
+
+    def __init__(self, rr=None, tf=None, sessions=None, streak_len=2, tp_dollars=2, sl_dollars=4):
+        super().__init__(rr, tf, sessions)
+        self.streak_len = int(streak_len)
+        self.tp_dollars = float(tp_dollars)
+        self.sl_dollars = float(sl_dollars)
+
+    def _grans(self, tf):
+        return {tf: 100}
+
+    def signal(self, data, now):
+        df = data[self.tf]
+        if len(df) < self.streak_len + 2:
+            return None
+        
+        # Récupération des dernières bougies closes
+        closes = df["close"].values
+        opens = df["open"].values
+        
+        # Détermination de la couleur des bougies (1 = verte, -1 = rouge, 0 = doji)
+        colors = np.where(closes > opens, 1, np.where(closes < opens, -1, 0))
+        
+        # Extraction de la dernière séquence de bougies closes
+        last_streak = colors[-self.streak_len:]
+        
+        # Vérification des doublons sur la même bougie
+        key = (df.index[-1], self.streak_len)
+        if key in self._done:
+            return None
+
+        current_price = float(closes[-1])
+
+        # CAS 1 : Suite de bougies vertes -> ACHAT (LONG)
+        if np.all(last_streak == 1):
+            self._done.add(key)
+            tp = current_price + self.tp_dollars
+            sl = current_price - self.sl_dollars
+            return Signal("long", sl, tp, f"Streak Fixed de {self.streak_len} bougies vertes")
+
+        # CAS 2 : Suite de bougies rouges -> VENTE (SHORT)
+        if np.all(last_streak == -1):
+            self._done.add(key)
+            tp = current_price - self.tp_dollars
+            sl = current_price + self.sl_dollars
+            return Signal("short", sl, tp, f"Streak Fixed de {self.streak_len} bougies rouges")
+
+        return None
+    
+
+class AlligatorV2Strategy(Strategy):
+    """Bill Williams inversé — on trade la CASSURE de la gueule, pas sa tendance.
+
+    ... (votre documentation) ...
+    """
+
+    name = "alligator-v2"
+    DEFAULT_TF = M5
+    ABOVE_LOOKBACK = 10
+    SL_MODE = "body"
+    SL_BUFFER_ATR = 0.5
+    TRAIL_MODE = "pnl"
+    TRAIL_STEP = 1.0
+    TRAIL_LOCK = 1.0
+
+    def _grans(self, tf):
+        self.bias_tf = snap_tf(max(H1, 12 * tf))
+        return {tf: 120, self.bias_tf: 120}
+
+    def __init__(self, rr=None, tf=None, sessions=None):
+        super().__init__(rr, tf, sessions)
+        self._pending = None
+        self._last_bar = None
+
+    def plot_current_state(self, data, nb_bougies=100):
+        """Génère une seule image du marché à l'état actuel avec vos lignes
+
+        d'Alligator pour comparaison avec TradingView.
+        """
+        df = data[self.tf]
+        if len(df) < 60:
+            print("Pas assez de données pour tracer le graphique.")
+            return
+
+        # On s'assure que les colonnes Alligator existent
+        if not {"jaw", "teeth", "lips"} <= set(df.columns):
+            df = df.copy()
+            df["jaw"], df["teeth"], df["lips"] = alligator_lines(df)
+
+        # Extraction des N dernières bougies pour le visuel
+        df_plot = df.tail(nb_bougies)
+
+        plt.figure(figsize=(14, 7))
+
+        # Rendu des bougies (Open, High, Low, Close)
+        for idx, row in df_plot.iterrows():
+            color = "green" if row["close"] >= row["open"] else "red"
+            # Mèches
+            plt.plot(
+                [idx, idx], [row["low"], row["high"]], color=color, linewidth=1
+            )
+            # Corps
+            plt.plot(
+                [idx, idx],
+                [row["open"], row["close"]],
+                color=color,
+                linewidth=4,
+                solid_capstyle="butt",
+            )
+
+        # Tracé de VOS lignes Alligator calculées par le bot
+        plt.plot(
+            df_plot.index,
+            df_plot["jaw"],
+            label="Jaw (Bleu)",
+            color="blue",
+            linewidth=1.5,
+        )
+        plt.plot(
+            df_plot.index,
+            df_plot["teeth"],
+            label="Teeth (Rouge)",
+            color="red",
+            linewidth=1.5,
+        )
+        plt.plot(
+            df_plot.index,
+            df_plot["lips"],
+            label="Lips (Vert)",
+            color="green",
+            linewidth=1.5,
+        )
+
+        plt.title(
+            f"Vérification Alligator - TF: {self.tf} (Dernières {nb_bougies} bougies)",
+            fontsize=12,
+            fontweight="bold",
+        )
+        plt.grid(True, linestyle="--", alpha=0.5)
+        plt.legend(loc="upper left")
+        plt.tight_layout()
+
+        # Affiche l'image instantanément
+        plt.show()
+
+    def signal(self, data, now):
+        df = data[self.tf]
+        if len(df) < 60:
+            return None
+        if not {"jaw", "teeth", "lips"} <= set(df.columns):
+            df = df.copy()
+            df["jaw"], df["teeth"], df["lips"] = alligator_lines(df)
+
+        # ---------------------------------------------------------------------
+        # NOTE : Pour voir le graphique en direct au moment où le bot tourne,
+        # vous pouvez appeler la méthode ici (attention, bloquant à chaque bougie) :
+        # self.plot_current_state(data)
+        # ---------------------------------------------------------------------
+
+        ts = df.index[-1]
+        if ts == self._last_bar:
+            return None
+        self._last_bar = ts
+
+        h1 = data[self.bias_tf]
+        if len(h1) < 60:
+            return None
+        h1 = ensure_cols(h1, {"ema50": ("ema", 50)})
+        h1_bull = float(h1["close"].iloc[-1]) > float(h1["ema50"].iloc[-1])
+
+        df = ensure_cols(df, {"atr": ("atr", 14)})
+        o, c = float(df["open"].iloc[-1]), float(df["close"].iloc[-1])
+        jaw = float(df["jaw"].iloc[-1])
+        teeth = float(df["teeth"].iloc[-1])
+        lips = float(df["lips"].iloc[-1])
+        atr = float(df["atr"].iloc[-1])
+        if any(np.isnan(x) for x in (jaw, teeth, lips)):
+            self._pending = None
+            return None
+        is_green, is_red = c > o, c < o
+
+        # ── 1) résolution d'une confirmation en attente ──────────────────────
+        if self._pending is not None:
+            p = self._pending
+            good = is_green if p["dir"] == "long" else is_red
+            if good:
+                self._pending = None
+                return self._fire(p, c, atr, h1_bull)
+            if not p["tolerated"]:
+                p["tolerated"] = True
+                return None
+            self._pending = None
+
+        # ── 2) détection d'un déclencheur sur la bougie clôturée ─────────────
+        n = len(df)
+        w = slice(max(0, n - 1 - self.ABOVE_LOOKBACK), n - 1)
+        lo_w, hi_w = df["low"].values[w], df["high"].values[w]
+        jw, th, lp = (
+            df["jaw"].values[w],
+            df["teeth"].values[w],
+            df["lips"].values[w],
+        )
+
+        if lips > teeth > jaw and o > jaw > c:
+            if np.any((lo_w > lp) & (lp > th) & (th > jw)):
+                self._pending = {
+                    "dir": "short",
+                    "trig_ts": ts,
+                    "sl_price": max(o, c),
+                    "tolerated": False,
+                }
+        elif jaw > teeth > lips and o < jaw < c:
+            if np.any((hi_w < lp) & (lp < th) & (th < jw)):
+                self._pending = {
+                    "dir": "long",
+                    "trig_ts": ts,
+                    "sl_price": min(o, c),
+                    "tolerated": False,
+                }
+        return None
+
+    def _fire(self, p, close, atr, h1_bull):
+        key = (p["dir"], p["trig_ts"])
+        if key in self._done:
+            return None
+
+        sl = p["sl_price"]
+        if (p["dir"] == "long" and close <= sl) or (
+            p["dir"] == "short" and close >= sl
+        ):
+            return None
+        self._done.add(key)
+        reason = "alligator-v2 " + ("buy" if p["dir"] == "long" else "sell")
+
+        mode = self.TRAIL_MODE
+        if mode == "pnl":
+            return Signal(
+                p["dir"],
+                sl,
+                None,
+                reason,
+                trail_kind="pnl",
+                trail_step=self.TRAIL_STEP,
+                trail_lock=self.TRAIL_LOCK,
+            )
+        if mode == "r":
+            unit = abs(close - sl)
+        elif mode == "atr":
+            unit = atr
+        else:
+            raise ValueError(f"TRAIL_MODE inconnu: {mode!r}")
+        if not unit or np.isnan(unit) or unit <= 0:
+            return None
+        return Signal(
+            p["dir"],
+            sl,
+            None,
+            reason,
+            trail_kind="dist",
+            trail_step=self.TRAIL_STEP * unit,
+            trail_lock=self.TRAIL_LOCK * unit,
+        )
+    
+# ──────────────────────────────────────────────────────────────────────────────
+#  Scratch — la stratégie de l'utilisateur (from_scratch.py), portée telle quelle
+# ──────────────────────────────────────────────────────────────────────────────
+
+class ScratchStrategy(Strategy):
+    """
+    Port fidèle de from_scratch.py (stratégie dessinée par l'utilisateur).
+
+    Alligator style TradingView: SMMA(13/8/5) sur hl2, SANS décalage forward —
+    les lignes collent au prix, l'empilement se lit donc à l'envers de
+    Williams (baissier ⇒ jaw au-dessus, lips en-dessous).
+
+    BUY (retournement haussier à travers la gueule):
+      déclencheur (bougie t):
+        - empilement jaw > teeth > lips (tendance baissière en lignes TV)
+        - le low d'une des 3 bougies précédentes était sous les lips
+        - bougie verte ET close > jaw (traversée complète de la gueule)
+        - écart de gueule jaw − lips ≥ MIN_SPREAD ($)
+      confirmation:
+        - bougie t+1 verte → entrée au close de t+1 ; sinon
+        - t+1 rouge PUIS t+2 verte avec close > jaw → entrée au close de t+2 ;
+        - sinon abandon du setup.
+    SELL: miroir (avec l'asymétrie du script d'origine, conservée: la
+      confirmation n°2 exige open[t+2] < jaw, pas close).
+
+    Sorties: TP/SL FIXES en distance de prix — TP_USD / SL_USD (le script
+    original: $4/$4 pour 0.01 lot × contrat 100 ⇒ $4 de prix sur l'or).
+    M15 par défaut, toutes les heures.
+    """
+    name = "scratch"
+    DEFAULT_TF = 900          # M15, comme le script d'origine
+    use_break_even = False    # le script d'origine n'a pas de break-even
+    MIN_SPREAD = 2.50         # écart jaw−lips minimal, en $ de prix
+    TP_USD = 6.0              # distance TP en $ de prix
+    SL_USD = 1.0              # distance SL en $ de prix
+    LOOKBACK_BEYOND = 3       # bougies où le prix doit avoir dépassé les lips
+
+    # ── options d'optimisation (sweep_scratch.py) ─────────────────────────────
+    EXIT_MODE = "usd"         # "usd": TP/SL fixes $ | "atr": SL=SL_ATRX×ATR, TP=RR_X×SL
+    SL_ATRX = 1.5             # (mode atr) distance SL en ×ATR(14) du tf
+    RR_X = 2.0                # (mode atr) TP = RR_X × distance SL
+    SPREAD_MODE = "usd"       # "usd": MIN_SPREAD $ | "atr": SPREAD_ATRX×ATR
+    SPREAD_ATRX = 0.3
+    H1_FILTER = True         # True: setups uniquement alignés à la tendance H1 (EMA50)
+    FRIDAY_CUTOFF = None      # ex. 18 → aucune entrée le vendredi après 18h UTC
+
+    def _grans(self, tf):
+        return {tf: 160, H1: 80}
+
+    def __init__(self, rr=None, tf=None, sessions=None):
+        super().__init__(rr, tf, sessions)
+        self._pending = None    # {dir, trig_ts, stage}
+        self._last_bar = None
+
+    def _fire(self, direction, close_price, atr_val):
+        key = (direction, self._last_bar)
+        if key in self._done:
+            return None
+        self._done.add(key)
+        self._pending = None
+        if self.EXIT_MODE == "atr" and atr_val > 0:
+            sl_d = self.SL_ATRX * atr_val
+            tp_d = self.RR_X * sl_d
+        else:
+            sl_d, tp_d = self.SL_USD, self.TP_USD
+        if direction == "long":
+            return Signal("long", close_price - sl_d, close_price + tp_d, "scratch buy")
+        return Signal("short", close_price + sl_d, close_price - tp_d, "scratch sell")
+
+    def signal(self, data, now):
+        df = data[self.tf]
+        if len(df) < 40:
+            return None
+        ts = df.index[-1]
+        if ts == self._last_bar:      # une évaluation par bougie clôturée
+            return None
+        self._last_bar = ts
+
+        if not {"tv_jaw", "tv_teeth", "tv_lips"} <= set(df.columns):
+            df = df.copy()
+            df["tv_jaw"], df["tv_teeth"], df["tv_lips"] = tv_alligator_lines(df)
+
+        df = ensure_cols(df, {"atr": ("atr", 14)})
+        o, c = float(df["open"].iloc[-1]), float(df["close"].iloc[-1])
+        jaw = float(df["tv_jaw"].iloc[-1])
+        teeth = float(df["tv_teeth"].iloc[-1])
+        lips = float(df["tv_lips"].iloc[-1])
+        atr_val = float(df["atr"].iloc[-1])
+        if any(np.isnan(x) for x in (jaw, teeth, lips)):
+            self._pending = None
+            return None
+        is_green, is_red = c > o, c < o
+
+        # ── résolution d'une confirmation en attente ──────────────────────────
+        if self._pending is not None:
+            p = self._pending
+            if p["dir"] == "long":
+                if p["stage"] == 1:                     # bougie après déclencheur
+                    if is_green:
+                        return self._fire("long", c, atr_val)
+                    if is_red:
+                        p["stage"] = 2                  # rouge tolérée, on attend t+2
+                        return None
+                    self._pending = None                # doji: abandon, mais la bougie
+                                                        # peut amorcer un nouveau setup ↓
+                else:
+                    # stage 2: il faut verte ET close > jaw
+                    if is_green and c > jaw:
+                        return self._fire("long", c, atr_val)
+                    self._pending = None
+            else:
+                if p["stage"] == 1:
+                    if is_red:
+                        return self._fire("short", c, atr_val)
+                    if is_green:
+                        p["stage"] = 2
+                        return None
+                    self._pending = None
+                else:
+                    # stage 2: rouge ET open < jaw (asymétrie du script d'origine)
+                    if is_red and o < jaw:
+                        return self._fire("short", c, atr_val)
+                    self._pending = None
+
+        # ── filtres optionnels d'amorçage de setup ────────────────────────────
+        if self.FRIDAY_CUTOFF is not None and ts.dayofweek == 4 and ts.hour >= self.FRIDAY_CUTOFF:
+            return None                                 # pas de nouveau setup → pas de
+                                                        # position portée sur le week-end
+        min_spread = (self.SPREAD_ATRX * atr_val) if self.SPREAD_MODE == "atr" else self.MIN_SPREAD
+
+        h1_bull = None
+        if self.H1_FILTER:
+            h1 = data.get(H1)
+            if h1 is None or len(h1) < 55:
+                return None
+            h1 = ensure_cols(h1, {"ema50": ("ema", 50)})
+            h1_bull = float(h1["close"].iloc[-1]) > float(h1["ema50"].iloc[-1])
+
+        # ── détection d'un déclencheur sur la bougie clôturée ─────────────────
+        lows = df["low"].values[-1 - self.LOOKBACK_BEYOND:-1]
+        highs = df["high"].values[-1 - self.LOOKBACK_BEYOND:-1]
+        lips_w = df["tv_lips"].values[-1 - self.LOOKBACK_BEYOND:-1]
+
+        if jaw > teeth > lips and is_green and c > jaw and (jaw - lips) >= min_spread:
+            if np.any(lows < lips_w) and (h1_bull is not False):   # prix fut sous les lips
+                self._pending = {"dir": "long", "trig_ts": ts, "stage": 1}
+        elif lips > teeth > jaw and is_red and c < jaw and (lips - jaw) >= min_spread:
+            if np.any(highs > lips_w) and (h1_bull is not True):   # prix fut au-dessus
+                self._pending = {"dir": "short", "trig_ts": ts, "stage": 1}
+        return None
+
+
+class ScratchGodStrategy(ScratchStrategy):
+    """
+    `scratch` avec la configuration validée par le protocole TRAIN/TEST
+    (sweep_scratch.py, 2026-07-09):
+      - sorties ATR-adaptatives: SL = 1.5×ATR(14) M15, TP = 3×SL (RR 3:1)
+      - spread minimal en $ (comme l'original), pas de filtre H1
+    TRAIN jan→mai: +7.4% PF 1.05 (172 trades) | TEST jun→jul: +2.9% PF 1.09
+    (43 trades). Edge PETIT et non significatif statistiquement — validé pour
+    la démo, PAS pour l'argent réel. La baseline TP$4/SL$2 faisait −67% sur
+    le même TRAIN.
+    """
+    name = "scratch-god"
+    EXIT_MODE = "atr"
+    SL_ATRX = 1.5
+    RR_X = 3.0
+    SPREAD_MODE = "usd"
+    H1_FILTER = False
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 #  Registry
 # ──────────────────────────────────────────────────────────────────────────────
 
 REGISTRY = {
     cls.name: cls
     for cls in (EmaRsiStrategy, SweepMssStrategy, VwapReclaimStrategy, OrbStrategy,
-                AlligatorStrategy, CrocoStrategy)
+                AlligatorStrategy, CrocoStrategy, AlligatorV2Strategy, StreakScalperStrategy, StreakScalperFixedStrategy,
+                ScratchStrategy, ScratchGodStrategy)
 }
 
 

@@ -1185,3 +1185,181 @@ ConnectionError: WebSocket connection closed
 2026-07-08 08:09:10  INFO      Strategy: orb  |  timeframes=[60, 3600]  |  poll every 15s
 2026-07-08 08:09:11  INFO      Starting  |  strategy=alligator  symbol=frxXAUUSD  mode=DEMO  risk=1.0%  max_dd=5.0%
 2026-07-08 08:09:11  INFO      Strategy: alligator  |  timeframes=[300]  |  poll every 60s
+2026-07-12 10:06:44  INFO      Starting  |  strategy=scratch  symbol=frxXAUUSD  mode=DEMO  risk=1.0%  max_dd=5.0%
+2026-07-12 10:06:44  INFO      Strategy: scratch  |  timeframes=[900, 3600]  |  poll every 60s
+2026-07-12 10:06:45  INFO      Accounts found: ROT91102392 (real, 0.00 USD), DOT92267057 (demo, 9401.62 USD)
+2026-07-12 10:06:46  INFO      ✅ Connected  account=DOT92267057  type=demo  balance=9401.62 USD
+2026-07-12 10:06:47  INFO      Symbol OK: frxXAUUSD     available multipliers=[100, 200, 300, 500, 800]  (picked per-trade to fit ATR)
+2026-07-12 10:06:47  INFO      ========================================================================
+2026-07-12 10:06:47  INFO      Bot running  |  day_P&L=+0.00  limit=−470.08  equity=9401.62
+2026-07-12 10:06:47  INFO      Strategy=scratch  |  Risk=1.0%/trade  |  Max daily loss=5.0%  |  Max positions=2
+2026-07-12 10:06:47  INFO      Press Ctrl+C to stop cleanly.
+========================================================================
+2026-07-12 10:06:53  INFO      Bot stopped  |  open positions still running: 0  (they will be managed by Deriv's own stop_loss/take_profit)
+2026-07-12 10:07:12  INFO      Starting  |  strategy=scratch  symbol=frxXAUUSD  mode=DEMO  risk=1.0%  max_dd=5.0%
+2026-07-12 10:07:12  INFO      Strategy: scratch  |  timeframes=[300, 3600]  |  poll every 60s
+2026-07-12 10:07:13  INFO      Accounts found: ROT91102392 (real, 0.00 USD), DOT92267057 (demo, 9401.62 USD)
+2026-07-12 10:07:14  INFO      ✅ Connected  account=DOT92267057  type=demo  balance=9401.62 USD
+2026-07-12 10:07:15  INFO      Symbol OK: frxXAUUSD     available multipliers=[100, 200, 300, 500, 800]  (picked per-trade to fit ATR)
+2026-07-12 10:07:15  INFO      ========================================================================
+2026-07-12 10:07:15  INFO      Bot running  |  day_P&L=+0.00  limit=−470.08  equity=9401.62
+2026-07-12 10:07:15  INFO      Strategy=scratch  |  Risk=1.0%/trade  |  Max daily loss=5.0%  |  Max positions=2
+2026-07-12 10:07:15  INFO      Press Ctrl+C to stop cleanly.
+========================================================================
+2026-07-12 10:11:29  INFO      Bot stopped  |  open positions still running: 0  (they will be managed by Deriv's own stop_loss/take_profit)
+2026-07-12 10:11:37  INFO      Starting  |  strategy=scratch  symbol=cryBTCUSD  mode=DEMO  risk=1.0%  max_dd=5.0%
+2026-07-12 10:11:37  INFO      Strategy: scratch  |  timeframes=[300, 3600]  |  poll every 60s
+2026-07-12 10:11:39  INFO      Accounts found: ROT91102392 (real, 0.00 USD), DOT92267057 (demo, 9401.62 USD)
+2026-07-12 10:11:40  INFO      ✅ Connected  account=DOT92267057  type=demo  balance=9401.62 USD
+2026-07-12 10:11:40  INFO      Symbol OK: cryBTCUSD     available multipliers=[100, 200, 300, 500, 800]  (picked per-trade to fit ATR)
+2026-07-12 10:11:40  INFO      ========================================================================
+2026-07-12 10:11:40  INFO      Bot running  |  day_P&L=+0.00  limit=−470.08  equity=9401.62
+2026-07-12 10:11:40  INFO      Strategy=scratch  |  Risk=1.0%/trade  |  Max daily loss=5.0%  |  Max positions=2
+2026-07-12 10:11:40  INFO      Press Ctrl+C to stop cleanly.
+========================================================================
+2026-07-12 10:16:19  INFO      Bot stopped  |  open positions still running: 0  (they will be managed by Deriv's own stop_loss/take_profit)
+2026-07-12 10:16:24  INFO      Starting  |  strategy=scratch  symbol=cryBTCUSD  mode=DEMO  risk=1.0%  max_dd=5.0%
+2026-07-12 10:16:24  INFO      Strategy: scratch  |  timeframes=[60, 3600]  |  poll every 15s
+2026-07-12 10:16:25  INFO      Accounts found: ROT91102392 (real, 0.00 USD), DOT92267057 (demo, 9401.62 USD)
+2026-07-12 10:16:26  INFO      ✅ Connected  account=DOT92267057  type=demo  balance=9401.62 USD
+2026-07-12 10:16:26  INFO      Symbol OK: cryBTCUSD     available multipliers=[100, 200, 300, 500, 800]  (picked per-trade to fit ATR)
+2026-07-12 10:16:26  INFO      ========================================================================
+2026-07-12 10:16:26  INFO      Bot running  |  day_P&L=+0.00  limit=−470.08  equity=9401.62
+2026-07-12 10:16:26  INFO      Strategy=scratch  |  Risk=1.0%/trade  |  Max daily loss=5.0%  |  Max positions=2
+2026-07-12 10:16:26  INFO      Press Ctrl+C to stop cleanly.
+========================================================================
+2026-07-12 10:58:09  WARNING   Connection issue () – reconnecting in 30s…
+2026-07-12 10:58:50  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 11:51:16  WARNING   Connection issue () – reconnecting in 30s…
+2026-07-12 12:07:22  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 12:23:44  WARNING   Connection issue () – reconnecting in 30s…
+2026-07-12 12:39:51  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 12:56:17  WARNING   Connection issue (WebSocket connection closed) – reconnecting in 30s…
+2026-07-12 13:12:13  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 13:28:39  WARNING   Connection issue (WebSocket connection closed) – reconnecting in 30s…
+2026-07-12 13:45:57  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 14:02:24  WARNING   Connection issue () – reconnecting in 30s…
+2026-07-12 14:18:30  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 14:25:42  WARNING   Connection issue (WebSocket connection closed) – reconnecting in 30s…
+2026-07-12 14:26:14  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 14:47:06  INFO      ⚠ Stake capped by limits — actual risk ≈0.13% of balance (target 1.0%).
+2026-07-12 14:47:06  INFO      📶 SIGNAL LONG   [scratch buy]  stake=$500.00  x800  SL=$12.50  TP=$24.99  |  day_P&L=+0.00  limit=−470.08  equity=9401.62
+2026-07-12 14:47:07  WARNING   proposal rejected (Enter an amount equal to or higher than 112.63.) – skipping entry.
+2026-07-12 14:51:00  WARNING   Connection issue () – reconnecting in 30s…
+2026-07-12 14:51:41  ERROR     Reconnect failed: POST /trading/v1/options/accounts/DOT92267057/otp → network error: [Errno 8] nodename nor servname provided, or not known
+2026-07-12 14:52:11  WARNING   Connection issue (sent 1000 (OK); no close frame received) – reconnecting in 30s…
+2026-07-12 14:52:41  ERROR     Reconnect failed: POST /trading/v1/options/accounts/DOT92267057/otp → network error: [Errno 8] nodename nor servname provided, or not known
+2026-07-12 14:53:11  WARNING   Connection issue (sent 1000 (OK); no close frame received) – reconnecting in 30s…
+2026-07-12 14:53:41  ERROR     Reconnect failed: POST /trading/v1/options/accounts/DOT92267057/otp → network error: [Errno 8] nodename nor servname provided, or not known
+2026-07-12 14:54:11  WARNING   Connection issue (sent 1000 (OK); no close frame received) – reconnecting in 30s…
+2026-07-12 14:54:41  ERROR     Reconnect failed: POST /trading/v1/options/accounts/DOT92267057/otp → network error: [Errno 8] nodename nor servname provided, or not known
+2026-07-12 14:55:11  WARNING   Connection issue (sent 1000 (OK); no close frame received) – reconnecting in 30s…
+2026-07-12 14:55:41  ERROR     Reconnect failed: POST /trading/v1/options/accounts/DOT92267057/otp → network error: [Errno 8] nodename nor servname provided, or not known
+2026-07-12 14:56:11  WARNING   Connection issue (sent 1000 (OK); no close frame received) – reconnecting in 30s…
+2026-07-12 14:56:41  ERROR     Reconnect failed: POST /trading/v1/options/accounts/DOT92267057/otp → network error: [Errno 8] nodename nor servname provided, or not known
+2026-07-12 14:57:11  WARNING   Connection issue (sent 1000 (OK); no close frame received) – reconnecting in 30s…
+2026-07-12 14:57:41  ERROR     Reconnect failed: POST /trading/v1/options/accounts/DOT92267057/otp → network error: [Errno 8] nodename nor servname provided, or not known
+2026-07-12 14:58:11  WARNING   Connection issue (sent 1000 (OK); no close frame received) – reconnecting in 30s…
+2026-07-12 14:58:41  ERROR     Reconnect failed: POST /trading/v1/options/accounts/DOT92267057/otp → network error: [Errno 8] nodename nor servname provided, or not known
+2026-07-12 14:59:11  WARNING   Connection issue (sent 1000 (OK); no close frame received) – reconnecting in 30s…
+2026-07-12 14:59:41  ERROR     Reconnect failed: POST /trading/v1/options/accounts/DOT92267057/otp → network error: [Errno 8] nodename nor servname provided, or not known
+2026-07-12 15:00:11  WARNING   Connection issue (sent 1000 (OK); no close frame received) – reconnecting in 30s…
+2026-07-12 15:00:41  ERROR     Reconnect failed: POST /trading/v1/options/accounts/DOT92267057/otp → network error: [Errno 8] nodename nor servname provided, or not known
+2026-07-12 15:01:11  WARNING   Connection issue (sent 1000 (OK); no close frame received) – reconnecting in 30s…
+2026-07-12 15:01:41  ERROR     Reconnect failed: POST /trading/v1/options/accounts/DOT92267057/otp → network error: [Errno 8] nodename nor servname provided, or not known
+2026-07-12 15:02:11  WARNING   Connection issue (sent 1000 (OK); no close frame received) – reconnecting in 30s…
+2026-07-12 15:02:43  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 15:05:05  INFO      ⚠ Stake capped by limits — actual risk ≈0.13% of balance (target 1.0%).
+2026-07-12 15:05:05  INFO      📶 SIGNAL LONG   [scratch buy]  stake=$500.00  x800  SL=$12.50  TP=$24.99  |  day_P&L=+0.00  limit=−470.08  equity=9401.62
+2026-07-12 15:05:05  WARNING   proposal rejected (Enter an amount equal to or higher than 112.63.) – skipping entry.
+2026-07-12 15:18:23  ERROR     Future exception was never retrieved
+future: <Future finished exception=ConnectionError('WebSocket connection closed')>
+ConnectionError: WebSocket connection closed
+2026-07-12 15:18:23  ERROR     Future exception was never retrieved
+future: <Future finished exception=ConnectionError('WebSocket connection closed')>
+ConnectionError: WebSocket connection closed
+2026-07-12 15:18:23  ERROR     Future exception was never retrieved
+future: <Future finished exception=ConnectionError('WebSocket connection closed')>
+ConnectionError: WebSocket connection closed
+2026-07-12 15:18:23  ERROR     Future exception was never retrieved
+future: <Future finished exception=ConnectionError('WebSocket connection closed')>
+ConnectionError: WebSocket connection closed
+2026-07-12 15:18:23  ERROR     Future exception was never retrieved
+future: <Future finished exception=ConnectionError('WebSocket connection closed')>
+ConnectionError: WebSocket connection closed
+2026-07-12 15:18:23  ERROR     Future exception was never retrieved
+future: <Future finished exception=ConnectionError('WebSocket connection closed')>
+ConnectionError: WebSocket connection closed
+2026-07-12 15:18:23  ERROR     Future exception was never retrieved
+future: <Future finished exception=ConnectionError('WebSocket connection closed')>
+ConnectionError: WebSocket connection closed
+2026-07-12 15:18:23  ERROR     Future exception was never retrieved
+future: <Future finished exception=ConnectionError('WebSocket connection closed')>
+ConnectionError: WebSocket connection closed
+2026-07-12 15:18:23  ERROR     Future exception was never retrieved
+future: <Future finished exception=ConnectionError('WebSocket connection closed')>
+ConnectionError: WebSocket connection closed
+2026-07-12 15:18:23  ERROR     Future exception was never retrieved
+future: <Future finished exception=ConnectionError('WebSocket connection closed')>
+ConnectionError: WebSocket connection closed
+2026-07-12 15:18:23  ERROR     Future exception was never retrieved
+future: <Future finished exception=ConnectionError('WebSocket connection closed')>
+ConnectionError: WebSocket connection closed
+2026-07-12 15:18:23  ERROR     Future exception was never retrieved
+future: <Future finished exception=ConnectionError('WebSocket connection closed')>
+ConnectionError: WebSocket connection closed
+2026-07-12 15:18:23  WARNING   Connection issue (WebSocket connection closed) – reconnecting in 30s…
+2026-07-12 15:18:54  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 15:54:37  WARNING   Connection issue () – reconnecting in 30s…
+2026-07-12 16:10:37  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 16:27:04  WARNING   Connection issue () – reconnecting in 30s…
+2026-07-12 16:43:11  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 16:59:38  WARNING   Connection issue () – reconnecting in 30s…
+2026-07-12 17:15:44  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 17:31:59  WARNING   Connection issue () – reconnecting in 30s…
+2026-07-12 17:33:52  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 17:50:17  WARNING   Connection issue (WebSocket connection closed) – reconnecting in 30s…
+2026-07-12 18:06:15  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 18:22:43  WARNING   Connection issue () – reconnecting in 30s…
+2026-07-12 18:35:15  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 18:51:21  WARNING   Connection issue (WebSocket connection closed) – reconnecting in 30s…
+2026-07-12 18:51:53  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 19:07:49  WARNING   Connection issue () – reconnecting in 30s…
+2026-07-12 19:24:00  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 19:36:06  WARNING   Connection issue (WebSocket connection closed) – reconnecting in 30s…
+2026-07-12 19:49:30  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 20:03:18  WARNING   Connection issue () – reconnecting in 30s…
+2026-07-12 20:04:00  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 20:06:27  WARNING   Connection issue () – reconnecting in 30s…
+2026-07-12 20:07:09  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 20:30:02  INFO      ⚠ Stake capped by limits — actual risk ≈0.13% of balance (target 1.0%).
+2026-07-12 20:30:02  INFO      📶 SIGNAL LONG   [scratch buy]  stake=$500.00  x800  SL=$12.49  TP=$24.98  |  day_P&L=+0.00  limit=−470.08  equity=9401.62
+2026-07-12 20:30:03  WARNING   proposal rejected (Enter an amount equal to or higher than 102.81.) – skipping entry.
+2026-07-12 20:53:03  WARNING   Connection issue (sent 1011 (internal error) keepalive ping timeout; no close frame received) – reconnecting in 30s…
+2026-07-12 20:53:38  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 20:57:36  WARNING   Connection issue () – reconnecting in 30s…
+2026-07-12 20:57:36  ERROR     Future exception was never retrieved
+future: <Future finished exception=ConnectionError('WebSocket connection closed')>
+ConnectionError: WebSocket connection closed
+2026-07-12 20:58:10  INFO      ✅ Reconnected  account=DOT92267057
+2026-07-12 21:22:38  WARNING   Connection issue () – reconnecting in 30s…
+2026-07-12 21:23:48  ERROR     Reconnect failed: POST /trading/v1/options/accounts/DOT92267057/otp → network error: [Errno 8] nodename nor servname provided, or not known
+2026-07-12 21:40:39  WARNING   Connection issue (sent 1000 (OK); no close frame received) – reconnecting in 30s…
+2026-07-12 21:41:09  ERROR     Reconnect failed: POST /trading/v1/options/accounts/DOT92267057/otp → network error: [Errno 8] nodename nor servname provided, or not known
+2026-07-12 21:41:39  WARNING   Connection issue (sent 1000 (OK); no close frame received) – reconnecting in 30s…
+2026-07-12 21:42:09  ERROR     Reconnect failed: POST /trading/v1/options/accounts/DOT92267057/otp → network error: [Errno 8] nodename nor servname provided, or not known
+2026-07-12 21:42:12  INFO      Starting  |  strategy=scratch  symbol=frxXAUUSD  mode=DEMO  risk=1.0%  max_dd=5.0%
+2026-07-12 21:42:12  INFO      Strategy: scratch  |  timeframes=[60, 3600]  |  poll every 15s
+2026-07-12 21:42:38  INFO      Starting  |  strategy=scratch  symbol=frxXAUUSD  mode=DEMO  risk=1.0%  max_dd=5.0%
+2026-07-12 21:42:38  INFO      Strategy: scratch  |  timeframes=[60, 3600]  |  poll every 15s
+2026-07-12 21:42:39  WARNING   Connection issue (sent 1000 (OK); no close frame received) – reconnecting in 30s…
+2026-07-12 21:42:39  INFO      Accounts found: ROT91102392 (real, 0.00 USD), DOT92267057 (demo, 9401.62 USD)
+2026-07-12 21:42:43  INFO      ✅ Connected  account=DOT92267057  type=demo  balance=9401.62 USD
+2026-07-12 21:42:43  INFO      Symbol OK: frxXAUUSD     available multipliers=[100, 200, 300, 500, 800]  (picked per-trade to fit ATR)
+2026-07-12 21:42:44  INFO      ========================================================================
+2026-07-12 21:42:44  INFO      Bot running  |  day_P&L=+0.00  limit=−470.08  equity=9401.62
+2026-07-12 21:42:44  INFO      Strategy=scratch  |  Risk=1.0%/trade  |  Max daily loss=5.0%  |  Max positions=2
+2026-07-12 21:42:44  INFO      Press Ctrl+C to stop cleanly.
+========================================================================
+2026-07-12 21:42:53  INFO      Bot stopped  |  open positions still running: 0  (they will be managed by Deriv's own stop_loss/take_profit)
+2026-07-12 21:42:53  INFO      WebSocket connection closed.

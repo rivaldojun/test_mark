@@ -29,6 +29,7 @@ from datetime import datetime, time as dtime, timezone
 from typing import Dict, Optional
 
 import numpy as np
+import matplotlib.pyplot as plt
 import pandas as pd
 
 # ── Session configuration (UTC, summer time — see module docstring) ──────────
@@ -725,39 +726,19 @@ class CrocoStrategy(AlligatorStrategy):
 # ──────────────────────────────────────────────────────────────────────────────
 
 class AlligatorV2Strategy(Strategy):
-    """
-    Bill Williams inversé — on trade la CASSURE de la gueule, pas sa tendance.
+    """Bill Williams inversé — on trade la CASSURE de la gueule, pas sa tendance.
 
-    SELL:
-      - lignes empilées lips > teeth > jaw (gueule ouverte à la hausse) ;
-      - le prix était ENTIÈREMENT au-dessus des 3 lignes récemment, puis
-        redescend en les traversant ; la bougie qui traverse le JAW ouvre
-        au-dessus et clôture en-dessous (donc rouge) = déclencheur ;
-      - confirmation: bougie suivante rouge → entrée ; UNE bougie verte
-        tolérée puis une rouge → entrée ; sinon annulation ;
-      - filtre: tendance H1 baissière (close H1 < EMA50).
-    BUY: miroir exact (jaw > teeth > lips, prix sous les lignes, tendance H1
-      haussière).
-
-    Sortie: SL initial = body high (sell) / body low (buy) de la bougie
-    déclencheuse. PAS de TP fixe — trailing sur le P&L du compte: verrouille
-    TRAIL_LOCK $ par TRAIL_STEP $ de gain latent, géré à l'identique par le
-    moteur de backtest et le bot live (donc --rr est ignoré pour cette strat).
+    ... (votre documentation) ...
     """
+
     name = "alligator-v2"
     DEFAULT_TF = M5
-    ABOVE_LOOKBACK = 10          # bougies où le prix doit avoir été entièrement d'un côté
-    #: placement du SL initial — "body" (body high/low du déclencheur, spec),
-    #: "wick" (mèche du déclencheur), "body_atr" (body ± SL_BUFFER_ATR×ATR),
-    #: "fractal" (dernier fractal opposé confirmé, k=2). Un SL plus large réduit
-    #: le notionnel (donc la commission). Surchargeable via overrides.
+    ABOVE_LOOKBACK = 10
     SL_MODE = "body"
     SL_BUFFER_ATR = 0.5
-    #: mode de trailing — "pnl" (spec initiale, $ de P&L), "r" (×risque initial),
-    #: "atr" (×ATR au déclenchement). Surchargeable via overrides pour comparer.
     TRAIL_MODE = "pnl"
-    TRAIL_STEP = 1.0           # pnl: $ ; r: ×R ; atr: ×ATR — par palier
-    TRAIL_LOCK = 1.0            # idem — verrouillé à chaque palier
+    TRAIL_STEP = 1.0
+    TRAIL_LOCK = 1.0
 
     def _grans(self, tf):
         self.bias_tf = snap_tf(max(H1, 12 * tf))
@@ -765,9 +746,79 @@ class AlligatorV2Strategy(Strategy):
 
     def __init__(self, rr=None, tf=None, sessions=None):
         super().__init__(rr, tf, sessions)
-        self._pending = None     # {dir, trig_ts, sl_price, tolerated}
-        self._last_bar = None    # dernière bougie clôturée déjà traitée (le live
-                                 #  poll plusieurs fois par bougie → 1 éval/bougie)
+        self._pending = None
+        self._last_bar = None
+
+    def plot_current_state(self, data, nb_bougies=100):
+        """Génère une seule image du marché à l'état actuel avec vos lignes
+
+        d'Alligator pour comparaison avec TradingView.
+        """
+        df = data[self.tf]
+        if len(df) < 60:
+            print("Pas assez de données pour tracer le graphique.")
+            return
+
+        # On s'assure que les colonnes Alligator existent
+        if not {"jaw", "teeth", "lips"} <= set(df.columns):
+            df = df.copy()
+            df["jaw"], df["teeth"], df["lips"] = alligator_lines(df)
+
+        # Extraction des N dernières bougies pour le visuel
+        df_plot = df.tail(nb_bougies)
+
+        plt.figure(figsize=(14, 7))
+
+        # Rendu des bougies (Open, High, Low, Close)
+        for idx, row in df_plot.iterrows():
+            color = "green" if row["close"] >= row["open"] else "red"
+            # Mèches
+            plt.plot(
+                [idx, idx], [row["low"], row["high"]], color=color, linewidth=1
+            )
+            # Corps
+            plt.plot(
+                [idx, idx],
+                [row["open"], row["close"]],
+                color=color,
+                linewidth=4,
+                solid_capstyle="butt",
+            )
+
+        # Tracé de VOS lignes Alligator calculées par le bot
+        plt.plot(
+            df_plot.index,
+            df_plot["jaw"],
+            label="Jaw (Bleu)",
+            color="blue",
+            linewidth=1.5,
+        )
+        plt.plot(
+            df_plot.index,
+            df_plot["teeth"],
+            label="Teeth (Rouge)",
+            color="red",
+            linewidth=1.5,
+        )
+        plt.plot(
+            df_plot.index,
+            df_plot["lips"],
+            label="Lips (Vert)",
+            color="green",
+            linewidth=1.5,
+        )
+
+        plt.title(
+            f"Vérification Alligator - TF: {self.tf} (Dernières {nb_bougies} bougies)",
+            fontsize=12,
+            fontweight="bold",
+        )
+        plt.grid(True, linestyle="--", alpha=0.5)
+        plt.legend(loc="upper left")
+        plt.tight_layout()
+
+        # Affiche l'image instantanément
+        plt.show()
 
     def signal(self, data, now):
         df = data[self.tf]
@@ -777,8 +828,15 @@ class AlligatorV2Strategy(Strategy):
             df = df.copy()
             df["jaw"], df["teeth"], df["lips"] = alligator_lines(df)
 
+        self.plot_current_state(data)
+        # ---------------------------------------------------------------------
+        # NOTE : Pour voir le graphique en direct au moment où le bot tourne,
+        # vous pouvez appeler la méthode ici (attention, bloquant à chaque bougie) :
+        # self.plot_current_state(data)
+        # ---------------------------------------------------------------------
+
         ts = df.index[-1]
-        if ts == self._last_bar:     # bougie déjà traitée → rien de neuf
+        if ts == self._last_bar:
             return None
         self._last_bar = ts
 
@@ -790,10 +848,10 @@ class AlligatorV2Strategy(Strategy):
 
         df = ensure_cols(df, {"atr": ("atr", 14)})
         o, c = float(df["open"].iloc[-1]), float(df["close"].iloc[-1])
-        jaw   = float(df["jaw"].iloc[-1])
+        jaw = float(df["jaw"].iloc[-1])
         teeth = float(df["teeth"].iloc[-1])
-        lips  = float(df["lips"].iloc[-1])
-        atr   = float(df["atr"].iloc[-1])
+        lips = float(df["lips"].iloc[-1])
+        atr = float(df["atr"].iloc[-1])
         if any(np.isnan(x) for x in (jaw, teeth, lips)):
             self._pending = None
             return None
@@ -807,25 +865,36 @@ class AlligatorV2Strategy(Strategy):
                 self._pending = None
                 return self._fire(p, c, atr, h1_bull)
             if not p["tolerated"]:
-                p["tolerated"] = True          # une seule bougie opposée tolérée
+                p["tolerated"] = True
                 return None
-            self._pending = None               # 2e opposée → annulation
-            # (la bougie courante peut encore amorcer un nouveau setup ci-dessous)
+            self._pending = None
 
         # ── 2) détection d'un déclencheur sur la bougie clôturée ─────────────
         n = len(df)
         w = slice(max(0, n - 1 - self.ABOVE_LOOKBACK), n - 1)
         lo_w, hi_w = df["low"].values[w], df["high"].values[w]
-        jw, th, lp = df["jaw"].values[w], df["teeth"].values[w], df["lips"].values[w]
+        jw, th, lp = (
+            df["jaw"].values[w],
+            df["teeth"].values[w],
+            df["lips"].values[w],
+        )
 
-        if lips > teeth > jaw and o > jaw > c:          # sell: traverse le jaw vers le bas
-            if np.any((lo_w > lp) & (lp > th) & (th > jw)):   # prix fut entièrement au-dessus
-                self._pending = {"dir": "short", "trig_ts": ts,
-                                 "sl_price": max(o, c), "tolerated": False}
-        elif jaw > teeth > lips and o < jaw < c:        # buy: traverse le jaw vers le haut
-            if np.any((hi_w < lp) & (lp < th) & (th < jw)):   # prix fut entièrement en-dessous
-                self._pending = {"dir": "long", "trig_ts": ts,
-                                 "sl_price": min(o, c), "tolerated": False}
+        if lips > teeth > jaw and o > jaw > c:
+            if np.any((lo_w > lp) & (lp > th) & (th > jw)):
+                self._pending = {
+                    "dir": "short",
+                    "trig_ts": ts,
+                    "sl_price": max(o, c),
+                    "tolerated": False,
+                }
+        elif jaw > teeth > lips and o < jaw < c:
+            if np.any((hi_w < lp) & (lp < th) & (th < jw)):
+                self._pending = {
+                    "dir": "long",
+                    "trig_ts": ts,
+                    "sl_price": min(o, c),
+                    "tolerated": False,
+                }
         return None
 
     def _fire(self, p, close, atr, h1_bull):
@@ -834,26 +903,42 @@ class AlligatorV2Strategy(Strategy):
             return None
 
         sl = p["sl_price"]
-        if (p["dir"] == "long" and close <= sl) or (p["dir"] == "short" and close >= sl):
-            return None                              # SL du mauvais côté → invalide
+        if (p["dir"] == "long" and close <= sl) or (
+            p["dir"] == "short" and close >= sl
+        ):
+            return None
         self._done.add(key)
         reason = "alligator-v2 " + ("buy" if p["dir"] == "long" else "sell")
 
-        # trailing selon le mode: "pnl" en $, "r"/"atr" convertis en distance de prix
         mode = self.TRAIL_MODE
         if mode == "pnl":
-            return Signal(p["dir"], sl, None, reason, trail_kind="pnl",
-                          trail_step=self.TRAIL_STEP, trail_lock=self.TRAIL_LOCK)
+            return Signal(
+                p["dir"],
+                sl,
+                None,
+                reason,
+                trail_kind="pnl",
+                trail_step=self.TRAIL_STEP,
+                trail_lock=self.TRAIL_LOCK,
+            )
         if mode == "r":
-            unit = abs(close - sl)                   # 1R en prix (≈ distance au SL initial)
+            unit = abs(close - sl)
         elif mode == "atr":
             unit = atr
         else:
             raise ValueError(f"TRAIL_MODE inconnu: {mode!r}")
         if not unit or np.isnan(unit) or unit <= 0:
             return None
-        return Signal(p["dir"], sl, None, reason, trail_kind="dist",
-                      trail_step=self.TRAIL_STEP * unit, trail_lock=self.TRAIL_LOCK * unit)
+        return Signal(
+            p["dir"],
+            sl,
+            None,
+            reason,
+            trail_kind="dist",
+            trail_step=self.TRAIL_STEP * unit,
+            trail_lock=self.TRAIL_LOCK * unit,
+        )
+    
 
 
 # ──────────────────────────────────────────────────────────────────────────────
